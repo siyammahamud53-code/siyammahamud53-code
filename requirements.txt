@@ -1,0 +1,37 @@
+# ===== কোর ওয়েব ফ্রেমওয়ার্ক (Python 3.11 অপ্টিমাইজড) =====
+fastapi==0.115.5
+uvicorn[standard]==0.34.0
+pydantic==2.10.3
+pydantic-core==2.27.1
+python-dotenv==1.0.1
+
+# ===== জেমিনি এআই =====
+google-generativeai==0.8.3
+
+# ===== ডেটাবেস ও মেমোরি =====
+chromadb==0.5.20
+hnswlib==0.8.0       # ChromaDB-র ডিপেন্ডেন্সি, 3.11-এর জন্য বিল্ট-ইন সাপোর্ট আছে
+
+# ===== রিয়েল-টাইম কানেকশন =====
+websockets==14.1
+aiohttp==3.10.10
+
+# ===== গুগল অথেনটিকেশন ও ড্রাইভ =====
+requests==2.32.3
+google-auth-oauthlib==1.2.1
+google-api-python-client==2.149.0
+pyasn1==0.6.1
+
+# ===== ভয়েস ইঞ্জিন =====
+gTTS==2.5.2
+SpeechRecognition==3.10.4
+pyaudio==0.2.14
+
+# ===== ডিভাইস কন্ট্রোল ও গেম অটোমেশন =====
+opencv-python==4.10.0.84
+pyautogui==0.9.54
+paho-mqtt==1.6.1
+adbutils==2.5.0
+
+# ===== সিকিউরিটি =====
+cryptography==43.0.3
