@@ -1,12 +1,10 @@
 FROM python:3.11-slim
 
-# সিস্টেম ডিপেন্ডেন্সি ইনস্টল করা
+# প্রয়োজনীয় বেসিক সিস্টেম প্যাকেজ ইনস্টল করা
 RUN apt-get update && apt-get install -y \
     portaudio19-dev \
     libasound-dev \
     libportaudio2 \
-    libgl1 \
-    libglib2.0-0 \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
