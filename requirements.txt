@@ -1,18 +1,37 @@
-fastapi==0.110.0
-uvicorn[standard]==0.28.0
-pydantic==2.6.4
-python-dotenv==1.0.0
-google-generativeai==0.5.0
-chromadb==0.4.24
-websockets==12.0
-aiohttp==3.9.3
-requests==2.31.0
-google-auth-oauthlib==1.2.0
-google-api-python-client==2.122.0
-pyasn1==0.5.1
-gTTS==2.3.2
-SpeechRecognition==3.10.0
+# ===== কোর ওয়েব ফ্রেমওয়ার্ক (Python 3.14-সাপোর্টেড ভার্সন) =====
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.13.0
+pydantic-core==2.46.0
+python-dotenv==1.0.1
+
+# ===== জেমিনি এআই =====
+google-generativeai==0.8.3
+
+# ===== ডেটাবেস ও মেমোরি =====
+chromadb==0.5.23
+numpy==1.26.4
+
+# ===== রিয়েল-টাইম কানেকশন =====
+websockets==14.1
+aiohttp==3.11.11
+
+# ===== গুগল অথেনটিকেশন ও ড্রাইভ =====
+requests==2.32.3
+google-auth-oauthlib==1.2.1
+google-api-python-client==2.159.0
+pyasn1==0.6.1
+
+# ===== ভয়েস ইঞ্জিন =====
+gTTS==2.5.4
+SpeechRecognition==3.10.4
+pyaudio==0.2.14
+
+# ===== ডিভাইস কন্ট্রোল ও গেম অটোমেশন (হেডলেস) =====
+opencv-python-headless==4.10.0.84
 pyautogui==0.9.54
 paho-mqtt==1.6.1
-adbutils==2.4.0
-cryptography==42.0.5
+adbutils==2.7.0
+
+# ===== সিকিউরিটি =====
+cryptography==44.0.0
