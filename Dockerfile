@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y \
     portaudio19-dev \
     libasound-dev \
     libportaudio2 \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     gcc \
     && rm -rf /var/lib/apt/lists/*
