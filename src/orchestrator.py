@@ -1,54 +1,58 @@
 import os
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-import google.generativeai as genai
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+import google.generativeai as genai
 from dotenv import load_dotenv
 
-# এনভায়রনমেন্ট ভ্যারিয়েবল লোড করার সঠিক ফাংশন
+# ===== ১. এনভায়রনমেন্ট লোড ও জেমিনি কনফিগার =====
 load_dotenv()
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
+if not os.getenv("GEMINI_API_KEY"):
+    raise ValueError("GEMINI_API_KEY not found in environment variables!")
+
+# ===== ২. ফাস্টএপিআই অ্যাপ =====
 app = FastAPI(
-    title="Siam AI Universal Assistant Backend",
-    description="FastAPI backend for controlling mobile automation, game settings, and voice control via Gemini API.",
-    version="1.0.0"
+    title="SYNAPSE AI API",
+    version="4.0",
+    description="মাল্টি-পার্সোনা AI অ্যাসিস্ট্যান্ট"
 )
 
-# CORS সেটিংস
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# জেমিনি এআই কনফিগারেশন
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-pro')
-else:
-    model = None
-
-class UserMessage(BaseModel):
+# ===== ৩. রিকোয়েস্ট ও রেসপন্স মডেল =====
+class ChatRequest(BaseModel):
     message: str
+    user_id: str = "default"  # ভবিষ্যতে মাল্টি-ইউজারের জন্য
 
+class ChatResponse(BaseModel):
+    reply: str
+    status: str = "success"
+
+# ===== ৪. চ্যাট এন্ডপয়েন্ট =====
+@app.post("/chat", response_model=ChatResponse)
+async def chat_endpoint(request: ChatRequest):
+    try:
+        # জেমিনি মডেল ইনিশিয়ালাইজ
+        model = genai.GenerativeModel(
+            model_name="gemini-1.5-flash",
+            system_instruction="আপনি SYNAPSE AI, একজন বুদ্ধিমান ও বন্ধুসুলভ সহকারী। আপনি বাংলা ও ইংরেজি উভয় ভাষায় উত্তর দিতে পারেন।"
+        )
+        # রেসপন্স জেনারেট
+        response = model.generate_content(request.message)
+        return ChatResponse(reply=response.text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Gemini API error: {str(e)}")
+
+# ===== ৫. রুট চেক =====
 @app.get("/")
-def home():
+async def root():
     return {
-        "status": "online",
-        "message": "Siam's Universal AI Server is running flawlessly!",
-        "gemini_connected": model is not None
+        "message": "SYNAPSE AI API is live!",
+        "version": "4.0",
+        "status": "connected",
+        "docs": "/docs"
     }
 
-@app.post("/api/chat")
-async def chat_with_ai(data: UserMessage):
-    if not model:
-        return {"error": "Gemini API key is missing or not configured in Render!"}
-    
-    try:
-        response = model.generate_content(data.message)
-        return {"response": response.text}
-    except Exception as e:
-        return {"error": str(e)}
+# ===== ৬. হেলথ চেক (আপনার UptimeRobot-এর জন্য) =====
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "python": os.sys.version}
