@@ -4,9 +4,9 @@ from pydantic import BaseModel
 import google.generativeai as genai
 from dotenv import load_dotenv
 
-# ===== আমাদের মডিউলগুলো ইম্পোর্ট =====
-from dual_persona import DualPersona
-from language_router import LanguageRouter
+# ===== আমাদের মডিউলগুলো ইম্পোর্ট (রেন্ডার ফিক্স সহ) =====
+from src.dual_persona import DualPersona
+from src.language_router import LanguageRouter
 
 # ===== ১. এনভায়রনমেন্ট লোড ও জেমিনি কনফিগ =====
 load_dotenv()
@@ -131,4 +131,4 @@ async def health_check():
         "status": "healthy",
         "python": os.sys.version,
         "persona": persona.name
-        }
+    }
