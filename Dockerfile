@@ -1,8 +1,9 @@
 FROM python:3.11-slim
 
-# ফিউচার প্রুফ এবং সব ফিচারের জন্য মিনিমালিস্টিক সিস্টেম ডিপেন্ডেন্সি
+# সার্ভারের জন্য প্রয়োজনীয় সিস্টেম লাইব্রেরি (hnswlib কম্পাইল করার জন্য g++ সহ)
 RUN apt-get update && apt-get install -y \
     gcc \
+    g++ \
     portaudio19-dev \
     libasound-dev \
     libportaudio2 \
@@ -17,5 +18,5 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 COPY . .
 
-# অ্যাপ্লিকেশন রান করার ফাইনাল কমান্ড
+# মেইন অ্যাপ্লিকেশন রান করার ফাইনাল কমান্ড
 CMD ["uvicorn", "src.orchestrator:app", "--host", "0.0.0.0", "--port", "10000"]
