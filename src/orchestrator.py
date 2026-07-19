@@ -1,81 +1,94 @@
 import os
-from fastapi import FastAPI, HTTPException
+import json
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 import google.generativeai as genai
 from dotenv import load_dotenv
+from typing import Dict
 
-# ===== আমাদের মডিউলগুলো ইম্পোর্ট (রেন্ডার ফিক্স সহ) =====
+# ===== আমাদের মডিউলগুলো (রেন্ডার ফিক্স সহ) =====
 from src.dual_persona import DualPersona
 from src.language_router import LanguageRouter
 
-# ===== ১. এনভায়রনমেন্ট লোড ও জেমিনি কনফিগ =====
+# ===== এনভায়রনমেন্ট =====
 load_dotenv()
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 if not os.getenv("GEMINI_API_KEY"):
     raise ValueError("GEMINI_API_KEY not found in environment variables!")
 
-# ===== ২. ফাস্টএপিআই অ্যাপ =====
+# ===== ফাস্টএপিআই অ্যাপ =====
 app = FastAPI(
     title="SYNAPSE AI API",
     version="4.0",
     description="মাল্টি-পার্সোনা ও বহুভাষিক AI অ্যাসিস্ট্যান্ট"
 )
 
-# ===== ৩. ক্যারেক্টার ও ভাষা ইঞ্জিন লোড =====
+# ===== মডিউল লোড =====
 persona = DualPersona()
 language_router = LanguageRouter()
 
-# ===== ৪. রিকোয়েস্ট ও রেসপন্স মডেল =====
+# ===== WebSocket ম্যানেজার =====
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: Dict[str, WebSocket] = {}
+
+    async def connect(self, websocket: WebSocket, user_id: str):
+        await websocket.accept()
+        self.active_connections[user_id] = websocket
+
+    def disconnect(self, user_id: str):
+        if user_id in self.active_connections:
+            del self.active_connections[user_id]
+
+    async def send_message(self, user_id: str, message: dict):
+        if user_id in self.active_connections:
+            try:
+                await self.active_connections[user_id].send_text(json.dumps(message))
+            except Exception as e:
+                print(f"⚠️ Error sending message: {e}")
+
+manager = ConnectionManager()
+
+# ===== ১. চ্যাট এন্ডপয়েন্ট (HTTP) =====
 class ChatRequest(BaseModel):
     message: str
-    user_id: str = "default"  # ভবিষ্যতে মাল্টি-ইউজারের জন্য
+    user_id: str = "default"
 
 class ChatResponse(BaseModel):
     reply: str
-    persona: str           # বর্তমান ক্যারেক্টারের নাম
-    language: str          # ডিটেক্ট করা ভাষা
-    language_code: str     # ভাষার কোড (bn, en, hi ইত্যাদি)
+    persona: str
+    language: str
+    language_code: str
     status: str = "success"
 
-# ===== ৫. চ্যাট এন্ডপয়েন্ট =====
 @app.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
     try:
-        # ১. ভাষা ডিটেক্ট করা
         lang_info = language_router.detect_language(request.message)
         lang_code = [k for k, v in language_router.supported_languages.items() if v == lang_info][0]
-        
-        # ২. সিস্টেম প্রম্পট তৈরি (পার্সোনা + ভাষা)
         base_prompt = persona.get_system_prompt()
         final_prompt = language_router.get_language_specific_prompt(
             text=request.message,
             base_prompt=base_prompt
         )
-        
-        # ৩. জেমিনি মডেল ইনিশিয়ালাইজ
         model = genai.GenerativeModel(
             model_name="gemini-1.5-flash",
             system_instruction=final_prompt
         )
-        
-        # ৪. রেসপন্স জেনারেট
         response = model.generate_content(request.message)
-        
-        # ৫. রেসপন্স রিটার্ন (ব্যক্তিত্ব ও ভাষার তথ্য সহ)
         return ChatResponse(
             reply=response.text,
             persona=persona.name,
             language=lang_info["name"],
             language_code=lang_code
         )
-        
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Gemini API error: {str(e)}")
 
-# ===== ৬. চরিত্র পরিবর্তনের এন্ডপয়েন্ট =====
+# ===== ২. চরিত্র পরিবর্তন =====
 class SwitchRequest(BaseModel):
-    persona: str  # 'ragna' অথবা 'maya'
+    persona: str
 
 @app.post("/switch")
 async def switch_persona(request: SwitchRequest):
@@ -89,7 +102,7 @@ async def switch_persona(request: SwitchRequest):
     else:
         raise HTTPException(status_code=400, detail=result)
 
-# ===== ৭. বর্তমান ক্যারেক্টারের তথ্য =====
+# ===== ৩. বর্তমান ক্যারেক্টারের তথ্য =====
 @app.get("/persona")
 async def get_persona():
     return {
@@ -97,7 +110,7 @@ async def get_persona():
         "persona": persona.get_current_persona_info()
     }
 
-# ===== ৮. ভাষা ডিটেক্ট টেস্ট (ডিবাগের জন্য) =====
+# ===== ৪. ভাষা ডিটেক্ট (ডিবাগের জন্য) =====
 class DetectRequest(BaseModel):
     text: str
 
@@ -113,7 +126,75 @@ async def detect_language(request: DetectRequest):
         "flag": lang_info["flag"]
     }
 
-# ===== ৯. রুট চেক =====
+# ===== ৫. WebSocket এন্ডপয়েন্ট (রিয়েল-টাইম) =====
+@app.websocket("/ws/{user_id}")
+async def websocket_endpoint(websocket: WebSocket, user_id: str):
+    await manager.connect(websocket, user_id)
+    
+    await manager.send_message(user_id, {
+        "type": "system",
+        "message": f"👋 হ্যালো {user_id}! SYNAPSE AI-তে স্বাগতম।",
+        "persona": persona.name
+    })
+
+    try:
+        while True:
+            data = await websocket.receive_text()
+            json_data = json.loads(data)
+            
+            if json_data.get("type") == "chat":
+                user_message = json_data.get("message", "")
+                
+                lang_info = language_router.detect_language(user_message)
+                lang_code = [k for k, v in language_router.supported_languages.items() if v == lang_info][0]
+                
+                base_prompt = persona.get_system_prompt()
+                final_prompt = language_router.get_language_specific_prompt(
+                    text=user_message,
+                    base_prompt=base_prompt
+                )
+                
+                model = genai.GenerativeModel(
+                    model_name="gemini-1.5-flash",
+                    system_instruction=final_prompt
+                )
+                response = model.generate_content(user_message)
+                
+                await manager.send_message(user_id, {
+                    "type": "reply",
+                    "message": response.text,
+                    "persona": persona.name,
+                    "language": lang_info["name"],
+                    "language_code": lang_code
+                })
+            
+            elif json_data.get("type") == "switch":
+                new_persona = json_data.get("persona", "")
+                result = persona.switch_persona(new_persona)
+                await manager.send_message(user_id, {
+                    "type": "system",
+                    "message": result,
+                    "persona": persona.name
+                })
+
+    except WebSocketDisconnect:
+        manager.disconnect(user_id)
+    except Exception as e:
+        print(f"⚠️ WebSocket error: {e}")
+        manager.disconnect(user_id)
+
+# ===== ৬. পিং/পং (সংযোগ সচল রাখতে) =====
+@app.websocket("/ws/ping")
+async def ping_pong(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        while True:
+            await websocket.receive_text()
+            await websocket.send_text("pong")
+    except WebSocketDisconnect:
+        pass
+
+# ===== ۷. রুট চেক =====
 @app.get("/")
 async def root():
     return {
@@ -121,10 +202,11 @@ async def root():
         "version": "4.0",
         "status": "connected",
         "current_persona": persona.name,
-        "docs": "/docs"
+        "docs": "/docs",
+        "websocket": "ws://your-url/ws/{user_id}"
     }
 
-# ===== ১০. হেলথ চেক =====
+# ===== ৮. হেলথ চেক =====
 @app.get("/health")
 async def health_check():
     return {
