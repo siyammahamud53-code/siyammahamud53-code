@@ -3,10 +3,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import google.generativeai as genai
 from pydantic import BaseModel
-from dotenv import load_file
+from dotenv import load_dotenv
 
-# এনভায়রনমেন্ট ভ্যারিয়েবল লোড করা
-load_file()
+# এনভায়রনমেন্ট ভ্যারিয়েবল লোড করার সঠিক ফাংশন
+load_dotenv()
 
 app = FastAPI(
     title="Siam AI Universal Assistant Backend",
@@ -14,7 +14,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS সেটিংস (যাতে যেকোনো ডিভাইস বা ফ্রন্টএন্ড থেকে কানেক্ট করা যায়)
+# CORS সেটিংস
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -48,7 +48,6 @@ async def chat_with_ai(data: UserMessage):
         return {"error": "Gemini API key is missing or not configured in Render!"}
     
     try:
-        # ৪০টি ইউনিভার্সাল মোড ও ধাপের প্রম্পট লজিক এখানে যুক্ত হবে
         response = model.generate_content(data.message)
         return {"response": response.text}
     except Exception as e:
